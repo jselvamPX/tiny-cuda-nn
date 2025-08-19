@@ -106,6 +106,12 @@ __global__ void kernel_grid(
 		for (uint32_t dim = 0; dim < N_POS_DIMS; ++dim) {
 			pos_fract(positions_in(dim, i), &pos[dim], &pos_derivative[dim], &pos_grid[dim], scale, identity_fun, identity_derivative);
 		}
+	}
+	else if (interpolation_type == InterpolationType::CubicSpline) {
+		TCNN_PRAGMA_UNROLL
+		for (uint32_t dim = 0; dim < N_POS_DIMS; ++dim) {
+			pos_fract(positions_in(dim, i), &pos[dim], &pos_derivative[dim], &pos_grid[dim], scale, cubic_spline, cubic_spline_derivative);
+		}
 	} else {
 		TCNN_PRAGMA_UNROLL
 		for (uint32_t dim = 0; dim < N_POS_DIMS; ++dim) {
@@ -262,6 +268,11 @@ __global__ void kernel_grid_backward(
 		for (uint32_t dim = 0; dim < N_POS_DIMS; ++dim) {
 			pos_fract(positions_in(dim, i), &pos[dim], &pos_grid[dim], scale, identity_fun);
 		}
+	} else if (interpolation_type == InterpolationType::CubicSpline) {
+		TCNN_PRAGMA_UNROLL
+		for (uint32_t dim = 0; dim < N_POS_DIMS; ++dim) {
+			pos_fract(positions_in(dim, i), &pos[dim], &pos_grid[dim], scale, cubic_spline);
+		}
 	} else {
 		TCNN_PRAGMA_UNROLL
 		for (uint32_t dim = 0; dim < N_POS_DIMS; ++dim) {
@@ -403,6 +414,11 @@ __global__ void kernel_grid_backward_input_backward_grid(
 		for (uint32_t dim = 0; dim < N_POS_DIMS; ++dim) {
 			pos_fract(positions_in(dim, i), &pos[dim], &pos_derivative[dim], &pos_grid[dim], scale, identity_fun, identity_derivative);
 		}
+	} else if (interpolation_type == InterpolationType::CubicSpline) {
+		TCNN_PRAGMA_UNROLL
+		for (uint32_t dim = 0; dim < N_POS_DIMS; ++dim) {
+			pos_fract(positions_in(dim, i), &pos[dim], &pos_derivative[dim], &pos_grid[dim], scale, cubic_spline, cubic_spline_derivative);
+		}
 	} else {
 		TCNN_PRAGMA_UNROLL
 		for (uint32_t dim = 0; dim < N_POS_DIMS; ++dim) {
@@ -505,6 +521,11 @@ __global__ void kernel_grid_backward_input_backward_input(
 		for (uint32_t dim = 0; dim < N_POS_DIMS; ++dim) {
 			pos_fract(positions_in(dim, i), &pos[dim], &pos_derivative[dim], &pos_2nd_derivative[dim], &pos_grid[dim], scale, identity_fun, identity_derivative, identity_2nd_derivative);
 		}
+	} else if (interpolation_type == InterpolationType::CubicSpline) {
+		TCNN_PRAGMA_UNROLL
+		for (uint32_t dim = 0; dim < N_POS_DIMS; ++dim) {
+			pos_fract(positions_in(dim, i), &pos[dim], &pos_derivative[dim], &pos_2nd_derivative[dim], &pos_grid[dim], scale, cubic_spline, cubic_spline_derivative, cubic_spline_2nd_derivative);
+		}
 	} else {
 		TCNN_PRAGMA_UNROLL
 		for (uint32_t dim = 0; dim < N_POS_DIMS; ++dim) {
@@ -556,7 +577,7 @@ __global__ void kernel_grid_backward_input_backward_input(
 		for (uint32_t idx = 0; idx < (1 << (N_POS_DIMS-1)); ++idx) {
 			// from diagonal part of Hessian; d(doutput_d[grad_dim])_d[grad_dim]
 			// NOTE: LinearInterpolations' diagonal part is 0.
-			if (interpolation_type == InterpolationType::Smoothstep) {
+			if (interpolation_type == InterpolationType::Smoothstep || interpolation_type == InterpolationType::CubicSpline) {
 				float weight_2nd_diag = grad_in_diag[grad_dim];
 				uvec<N_POS_DIMS> pos_grid_local;
 
@@ -1178,6 +1199,12 @@ public:
 							pos[i] = smoothstep(pos[i]);
 						}}
 					}}
+					if (InterpolationType::{INTERP_TYPE} == InterpolationType::CubicSpline) {{
+						TCNN_PRAGMA_UNROLL
+						for (uint32_t i = 0; i < {N_POS_DIMS}; ++i) {{
+							pos[i] = cubic_spline(pos[i]);
+						}}
+					}}
 
 					{VEC_OUT} result(({T})0.0f);
 
@@ -1271,6 +1298,13 @@ public:
 						for (uint32_t i = 0; i < {N_POS_DIMS}; ++i) {{
 							pos_derivative[i] = smoothstep_derivative(pos[i]);
 							pos[i] = smoothstep(pos[i]);
+						}}
+					}}
+					if (InterpolationType::{INTERP_TYPE} == InterpolationType::CubicSpline) {{
+						TCNN_PRAGMA_UNROLL
+						for (uint32_t i = 0; i < {N_POS_DIMS}; ++i) {{
+							pos_derivative[i] = cubic_spline_derivative(pos[i]);
+							pos[i] = cubic_spline(pos[i]);
 						}}
 					}}
 
@@ -1418,7 +1452,14 @@ public:
 							pos[i] = smoothstep(pos[i]);
 						}}
 					}}
-
+					if (InterpolationType::{INTERP_TYPE} == InterpolationType::CubicSpline) {{
+						TCNN_PRAGMA_UNROLL
+						for (uint32_t i = 0; i < {N_POS_DIMS}; ++i) {{
+							pos_2nd_derivative[i] = cubic_spline_2nd_derivative(pos[i]); 
+							pos_derivative[i] = cubic_spline_derivative(pos[i]);
+							pos[i] = cubic_spline(pos[i]);
+						}}
+					}}
 					if (dL_dparams) {{
 						{VEC_POS} weight_per_dim = scale * (pos_derivative * dL_ddLdx); 
 						TCNN_PRAGMA_UNROLL
@@ -1493,7 +1534,14 @@ public:
 										grad_out += calc_dLdx(pos_grid_local, weight_2nd_diag);
 									}}
 								}}
-
+								else if (InterpolationType::{INTERP_TYPE} == InterpolationType::CubicSpline) {{
+									TCNN_PRAGMA_UNROLL
+									for (uint32_t i = 0; i < {N_POS_DIMS}; ++i) {{
+										pos_2nd_derivative[i] = cubic_spline_2nd_derivative(pos[i]); 
+										pos_derivative[i] = cubic_spline_derivative(pos[i]);
+										pos[i] = cubic_spline(pos[i]);
+									}}
+								}}
 								// From other part of Hessian; d(doutput_d[real_other_grad_dim])_d[grad_dim]
 								if ({N_POS_DIMS} > 1) {{
 									TCNN_PRAGMA_UNROLL

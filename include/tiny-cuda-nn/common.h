@@ -159,6 +159,7 @@ enum class InterpolationType {
 	Nearest,
 	Linear,
 	Smoothstep,
+	CubicSpline,
 };
 
 enum class MatrixLayout {

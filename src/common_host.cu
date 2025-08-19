@@ -167,6 +167,8 @@ InterpolationType string_to_interpolation_type(const std::string& interpolation_
 		return InterpolationType::Linear;
 	} else if (equals_case_insensitive(interpolation_type, "Smoothstep")) {
 		return InterpolationType::Smoothstep;
+	} else if (equals_case_insensitive(interpolation_type, "CubicSpline")) {
+		return InterpolationType::CubicSpline;
 	}
 
 	throw std::runtime_error{fmt::format("Invalid interpolation type: {}", interpolation_type)};
@@ -177,6 +179,7 @@ std::string to_string(InterpolationType interpolation_type) {
 		case InterpolationType::Nearest: return "Nearest";
 		case InterpolationType::Linear: return "Linear";
 		case InterpolationType::Smoothstep: return "Smoothstep";
+		case InterpolationType::CubicSpline: return "CubicSpline";
 		default: throw std::runtime_error{"Invalid interpolation type."};
 	}
 }

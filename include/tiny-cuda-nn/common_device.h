@@ -997,6 +997,24 @@ __device__ inline float identity_2nd_derivative(float val) {
 	return 0.0f;
 }
 
+__device__ inline float cubic_spline(float x) {
+    // Cubic Hermite spline with C² continuity
+    if (x <= 0.0f) return 0.0f;
+    if (x >= 1.0f) return 1.0f;
+    return x * x * (3.0f - 2.0f * x);
+}
+
+__device__ inline float cubic_spline_derivative(float x) {
+    if (x <= 0.0f || x >= 1.0f) return 0.0f;
+    return 6.0f * x * (1.0f - x);
+}
+
+__device__ inline float cubic_spline_2nd_derivative(float x) {
+    if (x <= 0.0f || x >= 1.0f) return 0.0f;
+    return 6.0f * (1.0f - 2.0f * x);
+}
+
+
 template <typename F, typename FPRIME, typename FPRIMEPRIME>
 __device__ inline void pos_fract(const float input, float* pos, float* pos_derivative, float* pos_2nd_derivative, uint32_t* pos_grid, float scale, F interpolation_fun, FPRIME interpolation_fun_derivative, FPRIMEPRIME interpolation_fun_2nd_derivative) {
 	// The offset of 0.5 causes different scales to be staggered with respect to each other, thus
